@@ -8,6 +8,12 @@ Simple:
   * Add the extensions.conf context to your dialplan
   * Redirect an incoming DID to that context.
 
+== Prerequisites ==
+
+  * Asterisk (1.8+ recommended)
+  * Perl
+  * Asterisk::AGI for Perl
+  * [http://cepstral.com Cepstral] text-to-speech (or modify genwavs.sh accordingly)
 
 = Details =
 
