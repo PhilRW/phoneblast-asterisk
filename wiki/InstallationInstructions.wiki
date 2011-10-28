@@ -1,13 +1,14 @@
-#summary One-sentence summary of this page.
+#summary Basic installation instructions.
 
 = Introduction =
 
-Add your content here.
+Simple:
+  * Install the .pl files in /var/lib/asterisk/agi-bin/
+  * Install the .sh file in /var/lib/asterisk/sounds/calldb/
+  * Add the extensions.conf context to your dialplan
+  * Redirect an incoming DID to that context.
 
 
 = Details =
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+See [http://blog.rosenberg-watt.com/2011/04/12/phoneblast-for-asterisk-because-sharing-is-caring/ my blog] for more information.
