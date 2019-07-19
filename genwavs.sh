@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cd /var/lib/asterisk/sounds/calldb/
+cd /var/lib/asterisk/sounds/custom/calldb/
 
 swift "Hi. <break strength='medium' /> Please hold a moment for an important message." -o please-hold-a-moment-for-an-important-message.wav
 
