@@ -16,6 +16,7 @@ my $namefile = $agi->get_variable("NAMEFILE");
 my $dbname = $agi->get_variable("DBNAME");
 my $dbfile = $agi->get_variable("DBFILE");
 my $dbdescfile = $agi->get_variable("DBDESCFILE");
+my $dbconf = $agi->get_variable("DBCONF");
 my $input = 0;
 my $breakloop = 1;
 my $played = 0;
@@ -33,13 +34,15 @@ while (!$input) {
 	if ($breakloop >= 2) {
 		&saygoodbye();
 	}
-	if (!$input) { $input = $agi->stream_file("to-hear-msg-again", "12"); }
-	if (!$input) { $input = $agi->stream_file("press-1", "12"); }
-	if (!$input) { $input = $agi->stream_file("otherwise-press", "12"); }
-	if (!$input) { $input = $agi->stream_file("digits/2", "12"); }
-	if (!$input) { $input = $agi->stream_file("silence/2", "12"); }
-	if (!$input) { $input = $agi->stream_file("restarting", "12"); }
-	if (!$input) { $input = $agi->stream_file("silence/1", "12"); }
+	if (!$input) { $input = $agi->stream_file("to-hear-msg-again", "123"); }
+	if (!$input) { $input = $agi->stream_file("press-1", "123"); }
+	if (!$input) { $input = $agi->stream_file("custom/calldb/to-transfer-to-conference", "123"); }
+	if (!$input) { $input = $agi->stream_file("press-2", "123"); }
+	if (!$input) { $input = $agi->stream_file("otherwise-press", "123"); }
+	if (!$input) { $input = $agi->stream_file("digits/3", "123"); }
+	if (!$input) { $input = $agi->stream_file("silence/2", "123"); }
+	if (!$input) { $input = $agi->stream_file("restarting", "123"); }
+	if (!$input) { $input = $agi->stream_file("silence/1", "123"); }
 	$breakloop++;
 }
 $input -= 48;
@@ -51,8 +54,15 @@ if ($input == 1) {
 	$input = 0;
 	$breakloop = 1;
 	goto RESTART;
-### Graceful disconnect
+### Transfer to conference
 } elsif ($input == 2) {
+	$agi->stream_file("silence/1");
+	$agi->stream_file("custom/calldb/you-are-now-being-transferred-to-conference");
+	$agi->stream_file("silence/1");
+	$agi->exec("ConfBridge",$dbconf);
+	$agi->hangup();
+### Graceful disconnect
+} elsif ($input == 3) {
 	&saygoodbye();
 }
 	
@@ -67,7 +77,7 @@ sub saygoodbye {
 }
 
 sub playmessage {
-	my @messages = (	"calldb/incoming-message-for-the-phoneblast-list",
+	my @messages = (	"custom/calldb/incoming-message-for-the-phoneblast-list",
 				"$dbdescfile",
 				"message-from",
 				"$namefile",

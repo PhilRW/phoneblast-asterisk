@@ -19,7 +19,7 @@ my $callbackdelay = 60;		# How long to wait vefore calling back user to verify P
 my $agi = new Asterisk::AGI;
 my %input = $agi->ReadParse();
 my $spool_dir = "/var/spool/asterisk/outgoing";
-my $wav_dir = "/var/lib/asterisk/sounds/calldb/cache";
+my $wav_dir = "/var/lib/asterisk/sounds/custom/calldb/cache";
 my $movecallfilescmd = "/var/lib/asterisk/agi-bin/calldb_movecallfiles.pl";
 my $swiftcmd = "/usr/local/bin/swift";		# Make sure this exists; script does not check for this
 my $tmp_dir = "/tmp/callfiles";			# Temporary directory to store call files before they're placed
@@ -30,6 +30,8 @@ my $chan = "Local";
 my $dbname = $agi->get_variable("DBNAME");
 my $dbdid = $agi->get_variable("DBDID");
 my $dbdesc = $agi->get_variable("DBDESC");
+my $dbconf = $agi->get_variable("DBCONF");
+my $dbsendpin = $agi->get_variable("DBSENDPIN");
 my $cid = $input{callerid};
 my $pin = $agi->get_variable("PIN");
 if ($pin) {		# CID will be empty if it is a PIN verification callback, therefore set $cid to retrieved variable
@@ -74,7 +76,7 @@ if ($pin) {
 	$agi->stream_file("silence/2");
 	$agi->stream_file("hello");
 	ENTERPASSWORD:
-	$agi->exec("Read","READPIN,calldb/please-enter-your-temporary-verification-password-now,4");
+	$agi->exec("Read","READPIN,custom/calldb/please-enter-your-temporary-verification-password-now,4");
 	my $readpin = $agi->get_variable("READPIN");
 	### Add CID to DB if PIN is correct.
 	if ($readpin == $pin) {
@@ -85,8 +87,7 @@ if ($pin) {
 		$agi->stream_file('auth-thankyou');
 		$agi->stream_file('silence/1');
 		$agi->say_digits("$cid");
-		$agi->stream_file('num-was-successfully');
-		$agi->stream_file('added');
+		$agi->stream_file('num-was-successfully-added');
 		$agi->stream_file('silence/1');
 		&recname();
 	} else {
@@ -105,7 +106,7 @@ if ($pin) {
 if (not exists $dbh{$cid}) {
 	while (!$input) {
 		&saywelcome();
-		if (!$input) { $agi->stream_file('calldb/not-on-list-would-you-like-to-join'); }
+		if (!$input) { $agi->stream_file('custom/calldb/not-on-list-would-you-like-to-join'); }
 		if (!$input) { $input = $agi->stream_file('1-yes-2-no', '12'); }
 		if (!$input) { $input = $agi->stream_file('silence/6', '12'); }
 		if (!$input) { &loopcheck(); }
@@ -117,7 +118,7 @@ if (not exists $dbh{$cid}) {
 		$agi->stream_file("silence/1");
 		$agi->stream_file("privacy-your-callerid-is");
 		$agi->say_digits("$cid");
-		$agi->stream_file("calldb/pin-callback-instructions");
+		$agi->stream_file("custom/calldb/pin-callback-instructions");
 		$agi->say_digits("$pin");
 		&gencallback();
 		$agi->stream_file("silence/4");
@@ -143,15 +144,17 @@ $input = 0;
 $breakloop = 1;
 ### Loop main menu options with a loop check.
 while (!$input) {
-	if(!$input) { $input = $agi->stream_file('to-compose-a-message', '12345'); }
-	if(!$input) { $input = $agi->stream_file('press-1', '12345'); }
-	if(!$input) { $input = $agi->stream_file('calldb/to-remove-yr-tn-from-list', '12345'); }
-	if(!$input) { $input = $agi->stream_file('press-2', '12345'); }
-	if(!$input) { $input = $agi->stream_file('calldb/to-rerecord-yr-name', '12345'); }
-	if(!$input) { $input = $agi->stream_file('press-3', '12345'); }
-	if(!$input) { $input = $agi->stream_file('to-hang-up', '12345'); }
-	if(!$input) { $input = $agi->stream_file('press-4', '12345'); }
-	if(!$input) { $input = $agi->stream_file('silence/6', '12345'); }
+	if(!$input) { $input = $agi->stream_file('to-compose-a-message', '123456'); }
+	if(!$input) { $input = $agi->stream_file('press-1', '123456'); }
+	if(!$input) { $input = $agi->stream_file('custom/calldb/to-remove-yr-tn-from-list', '123456'); }
+	if(!$input) { $input = $agi->stream_file('press-2', '123456'); }
+	if(!$input) { $input = $agi->stream_file('custom/calldb/to-rerecord-yr-name', '123456'); }
+	if(!$input) { $input = $agi->stream_file('press-3', '123456'); }
+	if(!$input) { $input = $agi->stream_file('to-hang-up', '123456'); }
+	if(!$input) { $input = $agi->stream_file('press-4', '123456'); }
+	if(!$input) { $input = $agi->stream_file('custom/calldb/to-transfer-to-conference', '123456'); }
+	if(!$input) { $input = $agi->stream_file('press-5', '123456'); }
+	if(!$input) { $input = $agi->stream_file('silence/6', '123456'); }
 	if(!$input) { &loopcheck(); }
 }
 
@@ -159,6 +162,21 @@ $input = $input - 48;
 
 ### Caller wants to record and broadcast an outbound message
 if ($input == 1) {
+	if ($dbsendpin ne '') {
+		$agi->stream_file("silence/1");
+		$agi->stream_file("astcc-please-enter-your");
+		$agi->stream_file("administration");
+		$agi->exec("Read","AUTHCODE,vm-password,4");
+		my $readpin = $agi->get_variable("AUTHCODE");
+		if ($readpin != $dbsendpin) {
+			$agi->stream_file("silence/1");
+			$agi->stream_file("you-dialed-wrong-number");
+			$agi->stream_file("silence/1");
+			goto MAINMENU;
+		}
+		$agi->stream_file("silence/1");
+		$agi->stream_file("auth-thankyou");
+	}
 	&dbread();
 	### Warn if phone list is empty
 	if ($count == 0) {
@@ -166,7 +184,7 @@ if ($input == 1) {
 		$agi->stream_file("beeperr");
 		$agi->stream_file("beeperr");
 		$agi->stream_file("warning");
-		$agi->stream_file("calldb/nobody-else-on-call-list");
+		$agi->stream_file("custom/calldb/nobody-else-on-call-list");
 		$agi->stream_file("nobody-but-chickens");
 		$agi->stream_file("please-try-again-later");
 	### Record the outgoing message
@@ -193,7 +211,7 @@ if ($input == 1) {
 			move("$tmp_outfile".".wav","$outfile".".wav");
 			&gencalls();
 			$agi->stream_file('silence/1');
-			$agi->stream_file("vm-msgsaved");
+			$agi->stream_file('vm-msgsaved');
 			$agi->stream_file("the-num-i-have-is");
 			$agi->say_number("$count");
 			$agi->stream_file("outbound");
@@ -202,7 +220,7 @@ if ($input == 1) {
 			} else {
 				$agi->stream_file("calls");
 			}
-			$agi->stream_file("calldb/sending-now");
+			$agi->stream_file("sending-now");
 			$agi->stream_file("auth-thankyou");
 		} elsif ($input == 2) {
 			goto PLAYBACK;
@@ -228,6 +246,12 @@ if ($input == 1) {
 } elsif ($input == 4) {
 	&saygoodbye();
 } elsif ($input == 5) {
+	$agi->stream_file("silence/1");
+	$agi->stream_file("custom/calldb/you-are-now-being-transferred-to-conference");
+	$agi->stream_file("silence/1");
+	$agi->exec("ConfBridge",$dbconf);
+	$agi->hangup();
+} elsif ($input == 6) {
 	&dbread();
 	$count += 1;
 	$agi->stream_file("silence/1");
@@ -257,7 +281,7 @@ if ($input == 1) {
 		} else {
 			$agi->stream_file("users");
 		}
-		$agi->stream_file("calldb/with-no-recorded-name");
+		$agi->stream_file("custom/calldb/with-no-recorded-name");
 	}
 	$agi->stream_file("silence/1");
 	goto MAINMENU;
@@ -303,9 +327,9 @@ sub saywelcome {
 	if (-f $namefile.".wav") {
 		$agi->stream_file("$namefile");
 	}
-	$agi->stream_file("calldb/this-is-the-phoneblast-list");
+	$agi->stream_file("custom/calldb/this-is-the-phoneblast-list");
 	$agi->stream_file("$dbdescfile");
-	$agi->stream_file('calldb/welcome');
+	$agi->stream_file('custom/calldb/welcome');
 	$agi->stream_file('silence/1');
 }
 
@@ -341,7 +365,7 @@ sub cidcheck ($) {
 		$agi->stream_file('beeperr');
 		$agi->stream_file('beeperr');
 		$agi->stream_file('warning');
-		$agi->stream_file('calldb/not-10-digits-or-callerid-blocked');
+		$agi->stream_file('custom/calldb/not-10-digits-or-callerid-blocked');
 		$agi->stream_file("please-try-again-later");
 		&saygoodbye();
 	}
@@ -353,7 +377,7 @@ sub recname {
 	my $newrecording = 0;
 	if (-f $namefile.".wav") {
 		$agi->stream_file("silence/1");
-		$agi->stream_file("calldb/your-recorded-name-is");
+		$agi->stream_file("custom/calldb/your-recorded-name-is");
 		$agi->stream_file("$namefile");
 	} else {
 		RECORD:
@@ -424,10 +448,11 @@ SetVar: NAMEFILE=%s
 SetVar: DBNAME=%s
 SetVar: DBFILE=%s
 SetVar: DBDESCFILE=%s
+SetVar: DBCONF=%s
 SetVar: KEEPCID=TRUE
 Application: AGI
 Data: calldb_announce.pl
-}, $chan, $phonenum, $maxretries, $retrytime, $waittime, $callerid, $outfile, $namefile, $dbname, $dbfile, $dbdescfile;
+}, $chan, $phonenum, $maxretries, $retrytime, $waittime, $callerid, $outfile, $namefile, $dbname, $dbfile, $dbdescfile, $dbconf;
 		close(CALLFILE);
 		system ("touch -d \"$delay seconds\" $tmp_filename");
 		$delay = $delay + $callspacing;
@@ -464,9 +489,10 @@ SetVar: DBNAME=%s
 SetVar: DBDID=%s
 SetVar: KEEPCID=TRUE
 SetVar: CALLEDCID=%s
+SetVar: DBCONF=%s
 Application: AGI
 Data: calldb.pl
-}, $chan, $cid, $callerid, $pin, $dbname, $dbdid, $cid;
+}, $chan, $cid, $callerid, $pin, $dbname, $dbdid, $cid, $dbconf;
 	close(CALLFILE);
 	system ("touch -d \"$callbackdelay seconds\" $tmp_filename");
 	&bgmovefiles();
